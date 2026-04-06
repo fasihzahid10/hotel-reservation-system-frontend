@@ -9,4 +9,5 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["sh", "-c", "next start -H 0.0.0.0 -p ${PORT:-3000}"]
+# Use npm so PATH includes node_modules/.bin (bare `next` is not on PATH in sh).
+CMD ["npm", "run", "start"]
