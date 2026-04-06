@@ -1,14 +1,12 @@
+# Standalone frontend repo (Next.js at repo root — not monorepo paths).
 FROM node:20-alpine
-
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package*.json ./
-COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
 RUN npm install
-
 COPY . .
-WORKDIR /app/frontend
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
-
+ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "next start -H 0.0.0.0 -p ${PORT:-3000}"]
