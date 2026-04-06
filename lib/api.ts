@@ -1,4 +1,14 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+/** Base URL for API calls (no trailing slash). Read per-request so dev env changes can apply after restart. */
+function getApiBase(): string {
+  let raw = process.env.NEXT_PUBLIC_API_URL?.trim() ?? '';
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    raw = raw.slice(1, -1).trim();
+  }
+  if (raw.startsWith('http')) {
+    return raw.replace(/\/$/, '');
+  }
+  return (raw || '/api').replace(/\/$/, '') || '/api';
+}
 
 type ErrorBody = {
   statusCode?: number;
@@ -65,7 +75,7 @@ async function parseResponse(response: Response) {
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   try {
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await fetch(`${getApiBase()}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -79,7 +89,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   } catch (err) {
     if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('NetworkError'))) {
       throw new Error(
-        'Cannot reach the API. Start the backend (e.g. npm run dev:backend on port 4000) and ensure the app URL matches your setup.',
+        'Cannot reach the API. Set NEXT_PUBLIC_API_URL to your backend /api URL (or use NEXT_PUBLIC_API_URL=/api with the API on port 4000), then restart the dev server.',
       );
     }
     throw err;
