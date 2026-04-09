@@ -11,7 +11,7 @@ export function PublicNav() {
           <span className="rounded-2xl bg-blue-600 p-2 text-white">
             <Building2 className="h-5 w-5" />
           </span>
-          HarborView Hotel
+          HotelHub
         </Link>
         <Link href="/login" className="button-secondary gap-2">
           <LogIn className="h-4 w-4" />

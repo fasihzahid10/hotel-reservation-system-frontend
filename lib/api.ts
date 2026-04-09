@@ -5,7 +5,18 @@ function getApiBase(): string {
     raw = raw.slice(1, -1).trim();
   }
   if (raw.startsWith('http')) {
-    return raw.replace(/\/$/, '');
+    let base = raw.replace(/\/$/, '');
+    try {
+      const u = new URL(base);
+      const pathOnly = u.pathname.replace(/\/$/, '') || '/';
+      // Nest uses global prefix /api — if env is bare origin (e.g. https://app.onrender.com), append /api.
+      if (pathOnly === '/' && !base.endsWith('/api')) {
+        base = `${base}/api`;
+      }
+    } catch {
+      /* ignore */
+    }
+    return base;
   }
   return (raw || '/api').replace(/\/$/, '') || '/api';
 }
@@ -25,7 +36,14 @@ function formatApiErrorMessage(status: number, statusText: string, body: unknown
       return message.filter(Boolean).join(' ');
     }
     if (typeof message === 'string' && message.trim()) {
-      return message;
+      const m = message.trim();
+      if (m.includes('Cannot GET') && m.includes('/reports')) {
+        return `${m} — Deploy the latest backend (includes Reports) or set NEXT_PUBLIC_API_URL to your Nest /api base (e.g. https://your-api.onrender.com/api).`;
+      }
+      if (m.includes('Cannot GET') && m.includes('/rooms/')) {
+        return `${m} — Deploy the latest backend (includes GET /api/rooms/:id). The room page can still load data from the rooms list as a fallback.`;
+      }
+      return m;
     }
     if (typeof error === 'string' && error.trim()) {
       return error;

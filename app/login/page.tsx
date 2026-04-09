@@ -34,17 +34,19 @@ export default function LoginPage() {
 
   return (
     <main className="grid min-h-screen bg-slate-950 lg:grid-cols-[0.95fr_1.05fr]">
-      <section className="hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 p-10 text-white lg:flex lg:flex-col lg:justify-between">
+      <section className="hidden bg-gradient-to-b from-[#121d2f] via-[#0c1528] to-[#050812] p-10 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="flex items-center gap-3">
-          <span className="rounded-2xl bg-white/10 p-3"><Building2 className="h-6 w-6" /></span>
+          <span className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sky-300">
+            <Building2 className="h-6 w-6" strokeWidth={1.75} />
+          </span>
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">HarborView Hotel</p>
-            <p className="text-sm text-blue-100/80">Operations Platform</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white">HotelHub</p>
+            <p className="text-sm font-medium text-[#D1D5DB]">Operations platform</p>
           </div>
         </div>
 
         <div>
-          <h1 className="max-w-xl text-5xl font-black tracking-tight">
+          <h1 className="max-w-xl text-5xl font-extrabold tracking-tight text-white">
             Staff sign-in for reservations, front desk, and occupancy control.
           </h1>
           <div className="mt-10 grid max-w-lg gap-4">
@@ -53,9 +55,12 @@ export default function LoginPage() {
               'Real-time room inventory and arrivals',
               'Check-in, check-out, and reservation workflows',
             ].map((item) => (
-              <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                <ShieldCheck className="h-5 w-5 text-blue-300" />
-                <span className="text-blue-100">{item}</span>
+              <div
+                key={item}
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-4"
+              >
+                <ShieldCheck className="h-5 w-5 shrink-0 text-sky-300" strokeWidth={1.75} />
+                <span className="font-medium text-[#D1D5DB]">{item}</span>
               </div>
             ))}
           </div>

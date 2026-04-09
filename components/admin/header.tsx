@@ -21,10 +21,10 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-canvas/90 px-4 py-4 backdrop-blur lg:px-8">
+    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-canvas/95 px-4 py-4 backdrop-blur lg:px-8">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Operations</p>
-        <h2 className="mt-1 text-xl font-bold text-slate-900">Hotel Reservation System</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">HotelHub</p>
+        <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-900">Operations</h2>
       </div>
 
       <div className="flex items-center gap-3">

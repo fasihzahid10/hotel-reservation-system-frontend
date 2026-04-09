@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, BedDouble, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays, BedDouble, CheckCircle2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { PublicNav } from '@/components/public/public-nav';
 import { apiRequest } from '@/lib/api';
 import type {
@@ -51,17 +51,40 @@ const initialBookingState: BookingState = {
   notes: '',
 };
 
+type ToastState = { message: string; variant: 'error' | 'success' } | null;
+
 export default function HomePage() {
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [availableTypes, setAvailableTypes] = useState<RoomType[]>([]);
   const [booking, setBooking] = useState<BookingState>(initialBookingState);
-  const [searchError, setSearchError] = useState('');
   const [bookingError, setBookingError] = useState('');
-  const [bookingSuccess, setBookingSuccess] = useState('');
   const [createdReservation, setCreatedReservation] = useState<PublicReservationResponse | null>(null);
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paytabsEnabled, setPaytabsEnabled] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
+  const [pendingScrollToAvailability, setPendingScrollToAvailability] = useState(false);
+  const availabilitySectionRef = useRef<HTMLElement>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(message: string, variant: 'error' | 'success' = 'error') {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToast({ message, variant });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 5500);
+  }
+
+  function dismissToast() {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setToast(null);
+  }
 
   useEffect(() => {
     apiRequest<RoomType[]>('/room-types/public').then(setRoomTypes).catch(() => undefined);
@@ -73,16 +96,46 @@ export default function HomePage() {
       .catch(() => setPaytabsEnabled(false));
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!createdReservation) {
+      return;
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setCreatedReservation(null);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [createdReservation]);
+
   const selectedRoomType = useMemo(
     () => availableTypes.find((roomType) => roomType.id === booking.roomTypeId),
     [availableTypes, booking.roomTypeId],
   );
 
+  useEffect(() => {
+    if (!pendingScrollToAvailability || availableTypes.length === 0) {
+      return;
+    }
+    const t = window.setTimeout(() => {
+      availabilitySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setPendingScrollToAvailability(false);
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [pendingScrollToAvailability, availableTypes]);
+
   async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSearchError('');
     setBookingError('');
-    setBookingSuccess('');
     setCreatedReservation(null);
     setSearching(true);
 
@@ -101,15 +154,17 @@ export default function HomePage() {
       setAvailableTypes(results);
       if (results.length > 0) {
         setBooking((current) => ({ ...current, roomTypeId: current.roomTypeId || results[0].id }));
-        setSearchError('');
+        setPendingScrollToAvailability(true);
       } else {
-        setSearchError(
+        showToast(
           hint ??
             'No matching rooms are available for the selected dates. Try fewer rooms or different dates.',
+          'error',
         );
       }
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : 'Unable to search availability.');
+      const msg = error instanceof Error ? error.message : 'Unable to search availability.';
+      showToast(msg, 'error');
     } finally {
       setSearching(false);
     }
@@ -117,7 +172,6 @@ export default function HomePage() {
 
   async function submitBooking() {
     setBookingError('');
-    setBookingSuccess('');
     setSubmitting(true);
 
     try {
@@ -134,7 +188,6 @@ export default function HomePage() {
       }
 
       setCreatedReservation(reservation);
-      setBookingSuccess(`Reservation confirmed. Your reference is ${reservation.bookingReference}.`);
       setBooking({
         ...initialBookingState,
         checkInDate: booking.checkInDate,
@@ -149,6 +202,10 @@ export default function HomePage() {
     }
   }
 
+  function closeBookingModal() {
+    setCreatedReservation(null);
+  }
+
   function handleBookingFormSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void submitBooking();
@@ -157,6 +214,76 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-canvas">
       <PublicNav />
+
+      {toast ? (
+        <div
+          className="fixed bottom-6 left-1/2 z-[100] flex max-w-md -translate-x-1/2 items-start gap-3 rounded-2xl border px-4 py-3 pr-10 shadow-lg sm:left-auto sm:right-6 sm:translate-x-0"
+          role="alert"
+          style={{
+            backgroundColor: toast.variant === 'error' ? '#fef2f2' : '#f0fdf4',
+            borderColor: toast.variant === 'error' ? '#fecaca' : '#bbf7d0',
+          }}
+        >
+          <p className={`text-sm font-medium ${toast.variant === 'error' ? 'text-rose-900' : 'text-emerald-900'}`}>
+            {toast.message}
+          </p>
+          <button
+            type="button"
+            onClick={dismissToast}
+            className={`absolute right-2 top-2 rounded-lg p-1 transition hover:bg-black/5 ${toast.variant === 'error' ? 'text-rose-700' : 'text-emerald-800'}`}
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+
+      {createdReservation ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="booking-confirmed-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeBookingModal();
+            }
+          }}
+        >
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <button
+              type="button"
+              onClick={closeBookingModal}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="flex flex-col items-center text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="h-8 w-8" strokeWidth={2} />
+              </span>
+              <h2 id="booking-confirmed-title" className="mt-4 text-xl font-bold text-slate-900">
+                Booking confirmed
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Thank you — your stay is reserved. A confirmation has been recorded for{' '}
+                <strong className="text-slate-900">{createdReservation.guest.fullName}</strong>.
+              </p>
+              <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 font-mono text-lg font-semibold tracking-wide text-slate-900">
+                {createdReservation.bookingReference}
+              </p>
+              <p className="mt-3 text-sm text-slate-500">
+                {createdReservation.checkInDate.slice(0, 10)} → {createdReservation.checkOutDate.slice(0, 10)}
+              </p>
+              <button type="button" onClick={closeBookingModal} className="button-primary mt-6 w-full">
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <main>
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900" />
@@ -226,10 +353,6 @@ export default function HomePage() {
                   </select>
                 </div>
 
-                {searchError ? (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{searchError}</div>
-                ) : null}
-
                 <button className="button-primary w-full" disabled={searching}>
                   {searching ? 'Searching...' : 'Search availability'}
                 </button>
@@ -271,7 +394,10 @@ export default function HomePage() {
         </section>
 
         {availableTypes.length > 0 ? (
-          <section className="mx-auto grid max-w-7xl gap-8 px-6 pb-20 lg:grid-cols-[1fr_0.95fr]">
+          <section
+            ref={availabilitySectionRef}
+            className="mx-auto grid max-w-7xl gap-8 scroll-mt-6 px-6 pb-20 lg:grid-cols-[1fr_0.95fr]"
+          >
             <div className="space-y-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Available now</p>
@@ -377,10 +503,6 @@ export default function HomePage() {
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{bookingError}</div>
                 ) : null}
 
-                {bookingSuccess ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{bookingSuccess}</div>
-                ) : null}
-
                 {paytabsEnabled ? (
                   <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
                     Secure checkout runs on PayTabs. Depending on your PayTabs merchant profile, customers may see{' '}
@@ -399,15 +521,6 @@ export default function HomePage() {
                       : 'Confirm reservation'}
                 </button>
               </form>
-
-              {createdReservation ? (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  <p className="font-semibold text-slate-900">Booking reference: {createdReservation.bookingReference}</p>
-                  <p className="mt-2">
-                    Reserved for {createdReservation.guest.fullName} from {createdReservation.checkInDate.slice(0, 10)} to {createdReservation.checkOutDate.slice(0, 10)}.
-                  </p>
-                </div>
-              ) : null}
             </div>
           </section>
         ) : null}

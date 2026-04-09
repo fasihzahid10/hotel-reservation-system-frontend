@@ -25,6 +25,7 @@ export type RoomType = {
   capacity: number;
   basePrice: number | string;
   amenities: string[];
+  imageUrl?: string | null;
   availableCount?: number;
   _count?: { rooms: number };
   rooms?: Array<{
@@ -39,6 +40,7 @@ export type Room = {
   id: string;
   roomNumber: string;
   floor: number;
+  imageUrl?: string | null;
   housekeepingStatus: string;
   roomTypeId: string;
   roomType: RoomType;
@@ -92,6 +94,49 @@ export type DashboardSummary = {
     activeReservations: number;
     occupancyRate: number;
     monthRevenue: number;
+    totalRevenue?: number;
+    transactionCount?: number;
+    roomStatusBreakdown?: {
+      available: number;
+      occupied: number;
+      reserved: number;
+      maintenance: number;
+    };
   };
   recentReservations: Reservation[];
+  todayActivity?: Array<{ id: string; label: string; at: string }>;
+};
+
+export type ReportsAnalytics = {
+  kpis: {
+    occupancyRate: number;
+    avgStayLengthNights: number;
+    avgRevenuePerRoom: number;
+    noShows: number;
+    cancels: number;
+  };
+  revenueLast30Days: Array<{ date: string; amount: number }>;
+  revenueByRoomType: Array<{ name: string; revenue: number }>;
+  unpaidReservations: Array<{ id: string; bookingReference: string; guestName: string; totalAmount: number }>;
+  financialIntegrity: {
+    unpaidMessage: string;
+    auditSummary: {
+      totalTransactions: number;
+      cashPayments: number;
+      cardPayments: number;
+      activityLogs: number;
+    };
+  };
+  executive: {
+    totalBookings: number;
+    activeBookings: number;
+    totalRevenue: number;
+    avgPerBooking: number;
+    completed: number;
+    availableRooms: number;
+    occupancyRate: number;
+    totalGuests: number;
+    monthlyRevenueOccupancy: Array<{ month: string; revenue: number; occupancy: number }>;
+    revenueByRoomTypeYtd: Array<{ name: string; revenue: number }>;
+  };
 };
