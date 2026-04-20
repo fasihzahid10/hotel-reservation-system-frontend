@@ -43,6 +43,9 @@ function formatApiErrorMessage(status: number, statusText: string, body: unknown
       if (m.includes('Cannot GET') && m.includes('/rooms/')) {
         return `${m} — Deploy the latest backend (includes GET /api/rooms/:id). The room page can still load data from the rooms list as a fallback.`;
       }
+      if (m.includes('Cannot GET') && m.includes('/reservations/stats')) {
+        return `${m} — This build uses GET /api/dashboard/reservation-tab-stats instead. Deploy the latest backend and restart the Next dev server.`;
+      }
       return m;
     }
     if (typeof error === 'string' && error.trim()) {
@@ -61,6 +64,9 @@ function formatApiErrorMessage(status: number, statusText: string, body: unknown
   }
   if (status === 409) {
     return 'This conflicts with existing data (for example, a duplicate email or room number).';
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return 'Cannot reach the hotel API (bad gateway). Start the Nest backend, then ensure hotel-reservation-system-frontend/.env.local sets BACKEND_PROXY_URL to the same host and port (e.g. http://127.0.0.1:4001). Restart Next (npm run dev) after changing env.';
   }
   if (status >= 500) {
     return 'The server had a problem. Please try again in a moment.';

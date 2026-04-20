@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3,
@@ -14,8 +15,11 @@ import {
   Users,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { apiRequest } from '@/lib/api';
+import type { User } from '@/lib/types';
+import { canViewPayments, canViewReports } from '@/lib/permissions';
 
-const links = [
+const allLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/rooms', label: 'Rooms', icon: BedDouble },
   { href: '/dashboard/reservations', label: 'Reservations', icon: BookOpen },
@@ -28,6 +32,19 @@ const links = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    apiRequest<User>('/auth/me').then(setUser).catch(() => setUser(null));
+  }, []);
+
+  const links = useMemo(() => {
+    return allLinks.filter((link) => {
+      if (link.href === '/dashboard/reports' && !canViewReports(user)) return false;
+      if (link.href === '/dashboard/payments' && !canViewPayments(user)) return false;
+      return true;
+    });
+  }, [user]);
 
   return (
     <aside className="hidden w-72 shrink-0 flex-col bg-gradient-to-b from-[#121d2f] via-[#0c1528] to-[#050812] lg:flex">

@@ -93,10 +93,23 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            <p className="font-semibold text-slate-900">Seeded accounts</p>
-            <p className="mt-2">Admin: admin@hotel.local / Admin@123</p>
-            <p>Staff: staff@hotel.local / Staff@123</p>
+          <div className="mt-6 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            <p className="font-semibold text-slate-900">Demo accounts</p>
+            <p className="text-xs text-slate-500">Passwords are case-sensitive.</p>
+            <ul className="space-y-2 font-mono text-xs text-slate-800">
+              <li>
+                <span className="text-slate-500">Super admin:</span> superadmin@hotel.local
+              </li>
+              <li>
+                <span className="text-slate-500">Desk admin:</span> admin@hotel.local
+              </li>
+              <li>
+                <span className="text-slate-500">Shared password:</span> Admin@123
+              </li>
+              <li>
+                <span className="text-slate-500">Staff:</span> staff@hotel.local / Staff@123
+              </li>
+            </ul>
           </div>
         </div>
       </section>

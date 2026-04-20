@@ -60,7 +60,7 @@ export default function RoomDetailPage() {
     setFeedback('');
     try {
       const raw = photoDraft.trim();
-      await apiRequest(`/rooms/${room.id}`, {
+      await apiRequest(`/rooms/${room.id}/photo`, {
         method: 'PATCH',
         body: JSON.stringify({ imageUrl: raw.length ? raw : null }),
       });

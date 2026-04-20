@@ -2,7 +2,7 @@ export type User = {
   sub: string;
   email: string;
   fullName: string;
-  role: 'ADMIN' | 'STAFF';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'STAFF';
   /** Present on POST /auth/login; same JWT as httpOnly cookie (for API tools). */
   accessToken?: string;
 };
@@ -56,7 +56,11 @@ export type Reservation = {
   notes?: string | null;
   totalAmount: number | string;
   status: string;
+  paymentMethod?: string | null;
   paytabsTranRef?: string | null;
+  createdAt?: string;
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
   guest: Guest;
   reservationRooms: Array<{
     id: string;
@@ -84,11 +88,18 @@ export type Guest = {
   reservations?: Reservation[];
 };
 
+export type ReservationStatsSummary = {
+  counts: Record<string, number>;
+  bookedRooms: number;
+  availableRooms: number;
+};
+
 export type DashboardSummary = {
   kpis: {
     totalRooms: number;
     occupiedRooms: number;
     availableRooms: number;
+    bookedRooms: number;
     arrivalsToday: number;
     departuresToday: number;
     activeReservations: number;

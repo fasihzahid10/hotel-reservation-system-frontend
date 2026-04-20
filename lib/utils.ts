@@ -12,6 +12,14 @@ export function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+export function formatDateTime(value: string | null | undefined) {
+  if (!value) return '—';
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
 export function pluralize(value: number, singular: string, plural?: string) {
   if (value === 1) return `${value} ${singular}`;
   return `${value} ${plural ?? `${singular}s`}`;

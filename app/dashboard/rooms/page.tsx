@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Plus } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
+import type { User } from '@/lib/types';
+import { canManageInventory } from '@/lib/permissions';
 import { resolveRoomTypeImageUrl } from '@/lib/room-type-placeholders';
 import type { Room, RoomType } from '@/lib/types';
 import { formatCurrency, getStatusBadgeClasses } from '@/lib/utils';
@@ -11,6 +13,7 @@ import { formatCurrency, getStatusBadgeClasses } from '@/lib/utils';
 const statusOptions = ['AVAILABLE', 'OCCUPIED', 'CLEANING', 'MAINTENANCE', 'OUT_OF_SERVICE'];
 
 export default function RoomsPage() {
+  const [user, setUser] = useState<User | null>(null);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [error, setError] = useState('');
@@ -50,8 +53,14 @@ export default function RoomsPage() {
   }
 
   useEffect(() => {
+    apiRequest<User>('/auth/me').then(setUser).catch(() => setUser(null));
+  }, []);
+
+  useEffect(() => {
     loadData();
   }, []);
+
+  const inventoryAdmin = canManageInventory(user);
 
   const filteredRooms = useMemo(() => {
     if (typeFilter === 'all') return rooms;
@@ -136,13 +145,15 @@ export default function RoomsPage() {
               </option>
             ))}
           </select>
-          <a
-            href="#admin"
-            className="button-primary inline-flex items-center gap-2 rounded-xl bg-[#0c1528] px-5 py-3 text-white hover:bg-[#152a45]"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-            Add room / type
-          </a>
+          {inventoryAdmin ? (
+            <a
+              href="#admin"
+              className="button-primary inline-flex items-center gap-2 rounded-xl bg-[#0c1528] px-5 py-3 text-white hover:bg-[#152a45]"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+              Add room / type
+            </a>
+          ) : null}
         </div>
       </section>
 
@@ -256,6 +267,7 @@ export default function RoomsPage() {
         ) : null}
       </section>
 
+      {inventoryAdmin ? (
       <details id="admin" className="card scroll-mt-24 overflow-hidden">
         <summary className="cursor-pointer list-none border-b border-slate-200 px-6 py-4 text-base font-bold text-slate-900 [&::-webkit-details-marker]:hidden">
           Administration — add room types &amp; rooms
@@ -406,6 +418,12 @@ export default function RoomsPage() {
           </form>
         </div>
       </details>
+      ) : (
+        <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          Room inventory (adding types, rooms, or changing layout) is limited to super administrators.
+          You can still update housekeeping status from each room&apos;s detail page.
+        </p>
+      )}
     </div>
   );
 }

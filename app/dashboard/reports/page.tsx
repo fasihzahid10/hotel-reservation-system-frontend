@@ -23,7 +23,8 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
-import type { ReportsAnalytics } from '@/lib/types';
+import type { ReportsAnalytics, User } from '@/lib/types';
+import { canViewReports } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
 
 export default function ReportsPage() {
@@ -31,9 +32,26 @@ export default function ReportsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    apiRequest<ReportsAnalytics>('/reports/analytics')
-      .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load reports.'));
+    let cancelled = false;
+    (async () => {
+      try {
+        const u = await apiRequest<User>('/auth/me');
+        if (cancelled) return;
+        if (!canViewReports(u)) {
+          setError('Reports and revenue analytics are only available to super administrators.');
+          return;
+        }
+        const report = await apiRequest<ReportsAnalytics>('/reports/analytics');
+        if (!cancelled) setData(report);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Unable to load reports.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const lineData = useMemo(() => {
@@ -47,7 +65,11 @@ export default function ReportsPage() {
   const barColors = ['#1e3a5f', '#eab308', '#14b8a6', '#ea580c'];
 
   if (error) {
-    return <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-rose-700">{error}</div>;
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-900">
+        {error}
+      </div>
+    );
   }
 
   if (!data) {

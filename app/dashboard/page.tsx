@@ -1,24 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  BedDouble,
-  CalendarCheck2,
-  CalendarDays,
-  DollarSign,
-  LogIn,
-} from 'lucide-react';
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts';
+import Link from 'next/link';
+import { BedDouble, CalendarCheck2, CalendarDays, DollarSign, KeyRound, LogIn } from 'lucide-react';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { MetricCard } from '@/components/admin/metric-card';
 import { apiRequest } from '@/lib/api';
-import type { DashboardSummary } from '@/lib/types';
-import { formatCurrency, formatDate, getStatusBadgeClasses } from '@/lib/utils';
+import type { DashboardSummary, User } from '@/lib/types';
+import { canViewFinancialSummary } from '@/lib/permissions';
+import { formatCurrency, formatDate, formatDateTime, getStatusBadgeClasses } from '@/lib/utils';
 
 const DONUT_COLORS = {
   Available: '#10b981',
@@ -29,11 +19,16 @@ const DONUT_COLORS = {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardSummary | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    apiRequest<DashboardSummary>('/dashboard/summary')
-      .then(setData)
+    Promise.all([apiRequest<User>('/auth/me'), apiRequest<DashboardSummary>('/dashboard/summary')])
+      .then(([me, summary]) => {
+        setUser(me);
+        setData(summary);
+        setError('');
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load dashboard.'));
   }, []);
 
@@ -56,6 +51,7 @@ export default function DashboardPage() {
   }, [data]);
 
   const totalSlices = occupancyData.reduce((s, x) => s + x.value, 0);
+  const showMoney = canViewFinancialSummary(user);
 
   if (error) {
     return <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-rose-700">{error}</div>;
@@ -68,6 +64,7 @@ export default function DashboardPage() {
   const todayLabel = formatDate(new Date().toISOString());
   const totalRevenue = data.kpis.totalRevenue ?? data.kpis.monthRevenue;
   const txCount = data.kpis.transactionCount ?? 0;
+  const booked = data.kpis.bookedRooms ?? 0;
 
   return (
     <div className="space-y-8">
@@ -76,35 +73,53 @@ export default function DashboardPage() {
         <p className="mt-2 text-slate-500">Welcome back. Here&apos;s your hotel overview.</p>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section
+        className={`grid gap-4 sm:grid-cols-2 ${showMoney ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}
+      >
         <MetricCard
           label="Total Rooms"
           value={String(data.kpis.totalRooms)}
           helper={`${data.kpis.occupiedRooms} occupied`}
           icon={<BedDouble className="h-5 w-5" strokeWidth={1.75} />}
+          href="/dashboard/rooms"
+        />
+        <MetricCard
+          label="Booked rooms"
+          value={String(booked)}
+          helper="Active stay allocations (confirmed / in-house)"
+          icon={<KeyRound className="h-5 w-5" strokeWidth={1.75} />}
+          href="/dashboard/reservations?tab=CHECKED_IN"
         />
         <MetricCard
           label="Today's Check-ins"
           value={String(data.kpis.arrivalsToday)}
           helper={todayLabel}
           icon={<LogIn className="h-5 w-5" strokeWidth={1.75} />}
+          href="/dashboard/check-in?tab=CONFIRMED"
         />
         <MetricCard
           label="Active Reservations"
           value={String(data.kpis.activeReservations)}
           helper="Confirmed & checked in"
           icon={<CalendarDays className="h-5 w-5" strokeWidth={1.75} />}
+          href="/dashboard/reservations?tab=ALL"
         />
-        <MetricCard
-          label="Total Revenue"
-          value={formatCurrency(totalRevenue)}
-          helper={`${txCount} transaction${txCount === 1 ? '' : 's'}`}
-          icon={<DollarSign className="h-5 w-5" strokeWidth={1.75} />}
-        />
+        {showMoney ? (
+          <MetricCard
+            label="Total Revenue"
+            value={formatCurrency(totalRevenue)}
+            helper={`${txCount} transaction${txCount === 1 ? '' : 's'}`}
+            icon={<DollarSign className="h-5 w-5" strokeWidth={1.75} />}
+            href="/dashboard/reports"
+          />
+        ) : null}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)]">
+        <Link
+          href="/dashboard/rooms"
+          className="block rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] transition hover:border-sky-300/50 hover:shadow-md"
+        >
           <h2 className="font-display text-lg font-bold text-slate-900">Room Occupancy</h2>
           <div className="mt-6 flex flex-col items-center">
             <div className="h-56 w-full max-w-[280px]">
@@ -151,10 +166,14 @@ export default function DashboardPage() {
                 </span>
               ))}
             </div>
+            <p className="mt-4 text-center text-xs font-medium text-sky-700">Open rooms →</p>
           </div>
-        </div>
+        </Link>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)]">
+        <Link
+          href="/dashboard/check-in"
+          className="block rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] transition hover:border-sky-300/50 hover:shadow-md"
+        >
           <h2 className="font-display text-lg font-bold text-slate-900">Today&apos;s Activity</h2>
           <div className="mt-6 min-h-[200px]">
             {(data.todayActivity ?? []).length > 0 ? (
@@ -177,14 +196,17 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
-        </div>
+          <p className="mt-2 text-center text-xs font-medium text-sky-700">Front desk workspace →</p>
+        </Link>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="card overflow-hidden">
           <div className="border-b border-slate-200 px-6 py-5">
-            <h2 className="font-display text-xl font-bold text-slate-900">Recent reservations</h2>
-            <p className="mt-1 text-sm text-slate-500">The latest bookings created in the system.</p>
+            <h2 className="font-display text-xl font-bold text-slate-900">Reservation history</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Latest bookings with recorded check-out times. Open reservations for full actions.
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -194,20 +216,39 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 font-medium">Reference</th>
                   <th className="px-6 py-4 font-medium">Guest</th>
                   <th className="px-6 py-4 font-medium">Stay</th>
+                  <th className="px-6 py-4 font-medium">Booked</th>
+                  <th className="px-6 py-4 font-medium">Check-out</th>
                   <th className="px-6 py-4 font-medium">Amount</th>
                   <th className="px-6 py-4 font-medium">Status</th>
+                  <th className="px-6 py-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {data.recentReservations.map((reservation) => (
-                  <tr key={reservation.id} className="border-t border-slate-100">
-                    <td className="px-6 py-4 font-semibold text-slate-900">{reservation.bookingReference}</td>
+                  <tr
+                    key={reservation.id}
+                    className="border-t border-slate-100 transition hover:bg-sky-50/30"
+                  >
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/dashboard/reservations?tab=${encodeURIComponent(reservation.status)}`}
+                        className="font-semibold text-sky-800 hover:underline"
+                      >
+                        {reservation.bookingReference}
+                      </Link>
+                    </td>
                     <td className="px-6 py-4">
                       <p className="font-medium text-slate-900">{reservation.guest.fullName}</p>
                       <p className="text-slate-500">{reservation.guest.email}</p>
                     </td>
                     <td className="px-6 py-4 text-slate-600">
                       {formatDate(reservation.checkInDate)} → {formatDate(reservation.checkOutDate)}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {reservation.createdAt ? formatDateTime(reservation.createdAt) : '—'}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {formatDateTime(reservation.checkedOutAt)}
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {formatCurrency(reservation.totalAmount)}
@@ -216,6 +257,27 @@ export default function DashboardPage() {
                       <span className={`badge ${getStatusBadgeClasses(reservation.status)}`}>
                         {reservation.status.replaceAll('_', ' ')}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex w-[9.5rem] flex-col gap-1.5">
+                        <Link
+                          href="/dashboard/reservations"
+                          className="text-sm font-semibold text-sky-700 hover:text-sky-900"
+                        >
+                          Manage →
+                        </Link>
+                        {reservation.status === 'CHECKED_OUT' &&
+                        reservation.reservationRooms[0]?.room.roomTypeId ? (
+                          <Link
+                            href={`/dashboard/reservations?tab=CHECKED_OUT&quickRoomType=${encodeURIComponent(
+                              reservation.reservationRooms[0].room.roomTypeId,
+                            )}#quick-book`}
+                            className="inline-flex items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-center text-xs font-semibold text-sky-900 hover:bg-sky-100"
+                          >
+                            Book a room
+                          </Link>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -240,9 +302,19 @@ export default function DashboardPage() {
               Occupancy rate is <strong>{data.kpis.occupancyRate}%</strong> with{' '}
               <strong>{data.kpis.availableRooms}</strong> rooms available for sale.
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              This month&apos;s recorded revenue: <strong>{formatCurrency(data.kpis.monthRevenue)}</strong>.
-            </div>
+            {showMoney ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                This month&apos;s recorded revenue: <strong>{formatCurrency(data.kpis.monthRevenue)}</strong>.
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <strong>{booked}</strong> room nights are tied to active reservations. Open{' '}
+                <Link href="/dashboard/reservations" className="font-semibold text-sky-800 underline">
+                  Reservations
+                </Link>{' '}
+                for check-in and check-out.
+              </div>
+            )}
           </div>
         </div>
       </section>

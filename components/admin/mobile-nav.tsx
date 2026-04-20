@@ -1,10 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
+import { apiRequest } from '@/lib/api';
+import type { User } from '@/lib/types';
+import { canViewPayments, canViewReports } from '@/lib/permissions';
 
-const items = [
+const allItems = [
   { href: '/dashboard', label: 'Home' },
   { href: '/dashboard/rooms', label: 'Rooms' },
   { href: '/dashboard/reservations', label: 'Bookings' },
@@ -16,6 +20,19 @@ const items = [
 
 export function MobileNav() {
   const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    apiRequest<User>('/auth/me').then(setUser).catch(() => setUser(null));
+  }, []);
+
+  const items = useMemo(() => {
+    return allItems.filter((item) => {
+      if (item.href === '/dashboard/reports' && !canViewReports(user)) return false;
+      if (item.href === '/dashboard/payments' && !canViewPayments(user)) return false;
+      return true;
+    });
+  }, [user]);
 
   return (
     <nav className="border-b border-white/10 bg-gradient-to-b from-[#121d2f] to-[#050812] px-4 py-3 lg:hidden">

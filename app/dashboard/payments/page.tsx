@@ -4,19 +4,42 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DollarSign } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
-import type { Reservation } from '@/lib/types';
+import type { Reservation, User } from '@/lib/types';
+import { canViewPayments } from '@/lib/permissions';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 export default function PaymentsPage() {
+  const [user, setUser] = useState<User | null>(null);
   const [pending, setPending] = useState<Reservation[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiRequest<Reservation[]>('/reservations?status=PENDING')
-      .then(setPending)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load payments.'))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const u = await apiRequest<User>('/auth/me');
+        if (cancelled) return;
+        setUser(u);
+        if (!canViewPayments(u)) {
+          setError('Payment monitoring is limited to super administrators.');
+          return;
+        }
+        const p = await apiRequest<Reservation[]>('/reservations?status=PENDING');
+        if (!cancelled) setPending(p);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Unable to load payments.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -31,9 +54,11 @@ export default function PaymentsPage() {
             <p className="mt-1 text-slate-500">Reservations awaiting payment (PENDING).</p>
           </div>
         </div>
-        <Link href="/dashboard/reports" className="button-secondary rounded-xl px-4 py-2 text-sm">
-          View financial reports
-        </Link>
+        {user && canViewPayments(user) ? (
+          <Link href="/dashboard/reports" className="button-secondary rounded-xl px-4 py-2 text-sm">
+            View financial reports
+          </Link>
+        ) : null}
       </section>
 
       {error ? (
